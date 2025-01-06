@@ -32,11 +32,12 @@ ActiveRecord::Schema[7.2].define(version: 2025_01_07_153131) do
     t.string "place_id"
     t.integer "price_level"
     t.string "cuisine"
-    t.string "photo"
+    t.string "photo", limit: 2048
     t.float "ratings"
     t.integer "reviews_count"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "photo_url", limit: 2048
   end
 
   create_table "reviews", force: :cascade do |t|
@@ -75,5 +76,7 @@ ActiveRecord::Schema[7.2].define(version: 2025_01_07_153131) do
   end
 
   add_foreign_key "favorites", "restaurants"
+  add_foreign_key "favorites", "users"
   add_foreign_key "reviews", "restaurants"
+  add_foreign_key "reviews", "users"
 end

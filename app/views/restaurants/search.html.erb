@@ -1,0 +1,129 @@
+<div class="flex h-screen bg-gray-100">
+  <!-- Sidebar -->
+  <div class="w-96 bg-white shadow-lg flex flex-col">
+    <!-- Search and Filters Section -->
+    <div class="p-4 border-b">
+      <%= form_with url: restaurants_search_path, method: :get, local: true, class: "space-y-4" do |form| %>
+        <div>
+          <%= form.label :address, "Enter Address", class: "block text-sm font-medium text-gray-700" %>
+          <div class="mt-1 relative rounded-md shadow-sm">
+            <%= form.text_field :address, required: true,
+              class: "block w-full rounded-md border-gray-300 pl-10 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm",
+              placeholder: "Search location..." %>
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="flex flex-wrap gap-2">
+          <%= form.select :cuisine,
+            options_for_select([
+              ['All Cuisines', ''],
+              ['Italian', 'italian'],
+              ['Japanese', 'japanese'],
+              ['Chinese', 'chinese'],
+              ['American', 'american']
+            ]),
+            {},
+            class: "rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+          %>
+
+          <%= form.select :sort_by,
+            options_for_select([
+              ['Sort by', ''],
+              ['Highest Rated', 'rating'],
+              ['Most Reviews', 'reviews'],
+              ['Price (Low to High)', 'price_asc'],
+              ['Price (High to Low)', 'price_desc']
+            ]),
+            {},
+            class: "rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+          %>
+
+          <button type="button" id="toggleFavorites" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            Favorites
+          </button>
+        </div>
+
+        <div class="flex gap-2">
+          <%= form.number_field :radius, value: 1000,
+            class: "block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm",
+            placeholder: "Radius (m)" %>
+          <%= form.submit "Search",
+            class: "flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Results Section -->
+    <div class="flex-1 overflow-auto" id="resultsList">
+      <% if @restaurants.present? %>
+        <div class="divide-y divide-gray-200">
+          <% @restaurants.each do |restaurant| %>
+            <div class="restaurant-item p-4 hover:bg-gray-50 cursor-pointer" data-place-id="<%= restaurant.place_id %>">
+              <div class="flex gap-4">
+                <% if restaurant.photo_url.present? %>
+                  <img src="<%= restaurant.photo_url %>" alt="<%= restaurant.name %>" class="w-24 h-24 object-cover rounded-lg">
+                <% end %>
+                <div class="flex-1 min-w-0">
+                  <h3 class="text-lg font-semibold text-gray-900"><%= restaurant.name %></h3>
+                  <p class="text-sm text-gray-500 truncate"><%= restaurant.address %></p>
+                  <div class="flex items-center mt-1">
+                    <div class="flex items-center">
+                      <span class="text-yellow-400"><%= "★" * restaurant.ratings.to_i %><%= "☆" * (5 - restaurant.ratings.to_i) %></span>
+                      <span class="ml-1 text-sm text-gray-600">(<%= restaurant.reviews_count %>)</span>
+                    </div>
+                    <% if restaurant.price_level.present? %>
+                      <span class="ml-2 text-sm text-gray-600"><%= "€" * restaurant.price_level %></span>
+                    <% end %>
+                  </div>
+                </div>
+                <button class="favorite-button p-2 text-gray-400 hover:text-red-500">
+                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% elsif params[:address].present? %>
+        <div class="p-4 text-gray-500 text-center">
+          No restaurants found for the specified location.
+        </div>
+      <% end %>
+    </div>
+
+    <!-- Detailed View (Initially Hidden) -->
+    <div id="restaurantDetail" class="hidden absolute inset-0 bg-white z-10">
+      <div class="h-full flex flex-col">
+        <div class="p-4 border-b flex items-center">
+          <button id="backToList" class="mr-2 p-2 hover:bg-gray-100 rounded-full">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h2 class="text-xl font-semibold flex-1">Restaurant Details</h2>
+        </div>
+        <div class="flex-1 overflow-auto" id="restaurantDetailContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="flex-1">
+    <div id="map" class="h-full w-full"></div>
+  </div>
+</div>
+
+
+<script>
+  const restaurants = <%= raw @restaurants.to_json(only: [:name, :latitude, :longitude, :address, :place_id, :ratings, :reviews_count, :photo]) %>;
+</script>
