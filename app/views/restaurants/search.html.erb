@@ -44,17 +44,19 @@
             class: "rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
           %>
 
-          <%= form.check_box :show_favorites, 
-            checked: params[:show_favorites] == 'true', 
-            class: "hidden", 
-            id: "show_favorites" 
-          %>
-          <label for="show_favorites" id="toggleFavorites" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer">
-            <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-            Favorites
-          </label>
+          <% if user_signed_in? %>
+            <%= form.check_box :show_favorites, 
+              checked: params[:show_favorites] == 'true', 
+              class: "hidden", 
+              id: "show_favorites" 
+            %>
+            <label for="show_favorites" id="toggleFavorites" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer">
+              <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              Favorites
+            </label>
+          <% end %>
         </div>
 
         <div class="flex gap-2">
@@ -82,24 +84,28 @@
                   <p class="text-sm text-gray-500 truncate"><%= restaurant.address %></p>
                   <div class="flex items-center mt-1">
                     <div class="flex items-center">
-                      <span class="text-yellow-400"><%= "★" * restaurant.ratings.to_i %><%= "☆" * (5 - restaurant.ratings.to_i) %></span>
-                      <span class="ml-1 text-sm text-gray-600">(<%= restaurant.reviews_count %>)</span>
+                      <span class="text-yellow-400"><%= "★" * restaurant.average_rating.to_i %><%= "☆" * (5 - restaurant.average_rating.to_i) %></span>
+                      <span class="ml-1 text-sm text-gray-600">(<%= restaurant.reviews.count %>)</span>
                     </div>
                     <% if restaurant.price_level.present? %>
-                      <span class="ml-2 text-sm text-gray-600"><%= "€" * restaurant.price_level %></span>
+                      <span class="ml-2 text-sm text-gray-600"><%= restaurant.price_level %></span>
                     <% end %>
                   </div>
                   <% if restaurant.cuisine.present? %>
                     <div class="mt-1">
-                      <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full"><%= restaurant.cuisine %></span>
+                      <% restaurant.cuisine.split(', ').each do |cuisine| %>
+                        <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full mr-1"><%= cuisine %></span>
+                      <% end %>
                     </div>
                   <% end %>
                 </div>
-                <button class="favorite-button p-2 text-gray-400 hover:text-red-500" data-place-id="<%= restaurant.place_id %>">
-                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                </button>
+                <% if user_signed_in? %>
+                  <button class="favorite-button p-2 text-gray-400 hover:text-red-500" data-place-id="<%= restaurant.place_id %>" data-restaurant-id="<%= restaurant.id %>">
+                    <svg class="h-6 w-6" fill="<%= restaurant.is_favorite ? 'currentColor' : 'none' %>" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </button>
+                <% end %>
               </div>
             </div>
           <% end %>
@@ -133,8 +139,7 @@
   </div>
 </div>
 
-
-
 <script>
-  const restaurants = <%= raw @restaurants.to_json(only: [:name, :latitude, :longitude, :address, :place_id, :ratings, :reviews_count, :photo]) %>;
+  const restaurants = <%= raw @restaurants.to_json(only: [:id, :name, :latitude, :longitude, :address, :place_id, :price_level, :cuisine, :photo_url], methods: [:average_rating, :is_favorite]) %>;
 </script>
+

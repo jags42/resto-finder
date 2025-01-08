@@ -97,7 +97,7 @@ function showRestaurantDetail(placeId) {
           <span class="ml-2 text-gray-600">${restaurant.ratings.toFixed(1)} (${restaurant.reviews_count} reviews)</span>
         </div>
         ${restaurant.price_level ? 
-          `<p class="text-gray-600">Price: ${"€".repeat(restaurant.price_level)}</p>` 
+          `<p class="text-gray-600">Price: ${(restaurant.price_level)}</p>` 
           : ''
         }
         ${restaurant.cuisine ? 
@@ -306,7 +306,7 @@ function updateRestaurantList(restaurants) {
               <span class="ml-1 text-sm text-gray-600">(${restaurant.reviews_count})</span>
             </div>
             ${restaurant.price_level ? 
-              `<span class="ml-2 text-sm text-gray-600">${"€".repeat(restaurant.price_level)}</span>` 
+              `<span class="ml-2 text-sm text-gray-600">${(restaurant.price_level)}</span>` 
               : ''
             }
           </div>

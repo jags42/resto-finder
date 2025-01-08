@@ -1,5 +1,5 @@
 class RestaurantsController < ApplicationController
-  before_action :authenticate_user!
+  before_action :authenticate_user!, except: [:search]
 
   def search
     Rails.logger.debug "=== Starting Restaurant Search ==="
@@ -14,9 +14,8 @@ class RestaurantsController < ApplicationController
     Rails.logger.debug "Search params: address=#{address}, radius=#{radius}, max_results=#{max_results}, cuisine=#{cuisine}, sort_by=#{sort_by}, show_favorites=#{show_favorites}"
 
     if address.blank?
-      respond_to do |format|
-        format.html { return render :search }
-      end
+      flash.now[:alert] = "Address is required"
+      return render :search
     end
 
     places_service = GooglePlacesService.new
@@ -26,9 +25,8 @@ class RestaurantsController < ApplicationController
     Rails.logger.debug "Geocoded location: #{location.inspect}"
 
     if location[:error]
-      respond_to do |format|
-        format.html { return render :search }
-      end
+      flash.now[:alert] = location[:error]
+      return render :search
     end
 
     # Step 2: Search restaurants using lat/lng from geocoding
@@ -49,15 +47,21 @@ class RestaurantsController < ApplicationController
         @restaurants = restaurant_attrs_list.map do |attrs|
           restaurant = Restaurant.find_or_initialize_by(place_id: attrs[:place_id])
           attrs[:cuisine] = normalize_cuisine(attrs[:cuisine])
+          Rails.logger.debug "Restaurant attributes: #{attrs.inspect}"
           restaurant.assign_attributes(attrs)
-          restaurant.save if restaurant.new_record? || restaurant.changed?
+          if restaurant.new_record? || restaurant.changed?
+            restaurant.save
+            Rails.logger.debug "Saved restaurant: #{restaurant.attributes.inspect}"
+          else
+            Rails.logger.debug "Restaurant unchanged: #{restaurant.attributes.inspect}"
+          end
           restaurant
         end
 
         # Apply filters
         @restaurants = filter_restaurants(@restaurants, cuisine, sort_by, show_favorites)
       else
-        flash.now[:notice] = "No restaurants found near the specified location"
+        flash.now[:notice] = "No restaurants found for the specified location"
         @restaurants = []
       end
     rescue StandardError => e
@@ -73,7 +77,51 @@ class RestaurantsController < ApplicationController
     end
   end
 
+  def toggle_favorite
+    restaurant = Restaurant.find(params[:id])
+    favorite = current_user.favorites.find_or_initialize_by(restaurant: restaurant)
+    
+    if favorite.persisted?
+      favorite.destroy
+      is_favorite = false
+    else
+      favorite.save
+      is_favorite = true
+    end
+
+    render json: { is_favorite: is_favorite }
+  end
+
   private
+
+  def filter_restaurants(restaurants, cuisine, sort_by, show_favorites)
+    # Filter by cuisine
+    if cuisine.present?
+      restaurants = restaurants.select { |r| r.cuisine&.downcase&.include?(cuisine.downcase) }
+    end
+
+    # Filter favorites
+    if show_favorites && current_user
+      restaurant_ids = current_user.favorites.pluck(:restaurant_id)
+      restaurants = restaurants.select { |r| restaurant_ids.include?(r.id) }
+    end
+
+    # Sort restaurants
+    case sort_by
+    when 'rating'
+      restaurants = restaurants.sort_by { |r| -r.average_rating }
+    when 'reviews'
+      restaurants = restaurants.sort_by { |r| -r.reviews.count }
+    when 'price_asc'
+      price_order = ['Free', 'Inexpensive', 'Moderate', 'Expensive', 'Very Expensive', 'Unknown']
+      restaurants = restaurants.sort_by { |r| price_order.index(r.price_level) || -1 }
+    when 'price_desc'
+      price_order = ['Very Expensive', 'Expensive', 'Moderate', 'Inexpensive', 'Free', 'Unknown']
+      restaurants = restaurants.sort_by { |r| price_order.index(r.price_level) || -1 }
+    end
+
+    restaurants
+  end
 
   def normalize_cuisine(cuisine)
     return nil if cuisine.blank?
@@ -84,37 +132,11 @@ class RestaurantsController < ApplicationController
       .gsub('_house', '')
       .split(',')
       .map(&:strip)
+      .reject { |c| c == 'restaurant' } # Remove standalone 'restaurant'
       .uniq
       .join(', ')
 
-    normalized
-  end
-
-  def filter_restaurants(restaurants, cuisine, sort_by, show_favorites)
-    # Filter by cuisine
-    if cuisine.present?
-      restaurants = restaurants.select { |r| r.cuisine&.downcase&.include?(cuisine.downcase) }
-    end
-
-    # Filter favorites
-    if show_favorites && current_user
-      favorite_restaurant_ids = current_user.favorites.pluck(:restaurant_id)
-      restaurants = restaurants.select { |r| favorite_restaurant_ids.include?(r.id) }
-    end
-
-    # Sort restaurants
-    case sort_by
-    when 'rating'
-      restaurants = restaurants.sort_by { |r| -r.ratings }
-    when 'reviews'
-      restaurants = restaurants.sort_by { |r| -r.reviews_count }
-    when 'price_asc'
-      restaurants = restaurants.sort_by { |r| r.price_level || 0 }
-    when 'price_desc'
-      restaurants = restaurants.sort_by { |r| -(r.price_level || 0) }
-    end
-
-    restaurants
+    normalized.presence
   end
 end
 
