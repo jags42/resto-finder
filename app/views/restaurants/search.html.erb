@@ -27,7 +27,7 @@
               ['Japanese', 'japanese'],
               ['Chinese', 'chinese'],
               ['American', 'american']
-            ]),
+            ], params[:cuisine]),
             {},
             class: "rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
           %>
@@ -39,21 +39,26 @@
               ['Most Reviews', 'reviews'],
               ['Price (Low to High)', 'price_asc'],
               ['Price (High to Low)', 'price_desc']
-            ]),
+            ], params[:sort_by]),
             {},
             class: "rounded-md border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
           %>
 
-          <button type="button" id="toggleFavorites" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+          <%= form.check_box :show_favorites, 
+            checked: params[:show_favorites] == 'true', 
+            class: "hidden", 
+            id: "show_favorites" 
+          %>
+          <label for="show_favorites" id="toggleFavorites" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer">
             <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
             Favorites
-          </button>
+          </label>
         </div>
 
         <div class="flex gap-2">
-          <%= form.number_field :radius, value: 1000,
+          <%= form.number_field :radius, value: params[:radius] || 1000,
             class: "block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm",
             placeholder: "Radius (m)" %>
           <%= form.submit "Search",
@@ -84,8 +89,13 @@
                       <span class="ml-2 text-sm text-gray-600"><%= "€" * restaurant.price_level %></span>
                     <% end %>
                   </div>
+                  <% if restaurant.cuisine.present? %>
+                    <div class="mt-1">
+                      <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full"><%= restaurant.cuisine %></span>
+                    </div>
+                  <% end %>
                 </div>
-                <button class="favorite-button p-2 text-gray-400 hover:text-red-500">
+                <button class="favorite-button p-2 text-gray-400 hover:text-red-500" data-place-id="<%= restaurant.place_id %>">
                   <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
@@ -122,6 +132,7 @@
     <div id="map" class="h-full w-full"></div>
   </div>
 </div>
+
 
 
 <script>
