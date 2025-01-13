@@ -54,11 +54,10 @@ function addRestaurantMarkers(restaurants) {
     });
 
     bounds.extend(position);
-    markers.set(restaurant.place_id, marker);
+    markers.set(restaurant.id, marker);
 
     marker.addListener("click", () => {
-      showRestaurantDetail(restaurant.place_id);
-      highlightListItem(restaurant.place_id);
+      window.location.href = `/restaurants/${restaurant.id}`;
     });
   });
 
@@ -76,63 +75,11 @@ function clearMap() {
   markers.clear();
 }
 
-function showRestaurantDetail(placeId) {
-  const restaurant = restaurants.find(r => r.place_id === placeId);
-  if (!restaurant) return;
-
-  const detailView = document.getElementById('restaurantDetail');
-  const detailContent = document.getElementById('restaurantDetailContent');
-
-  if (detailView && detailContent) {
-    detailContent.innerHTML = `
-      <div class="p-4 space-y-4">
-        ${restaurant.photo_url ? 
-          `<img src="${restaurant.photo_url}" alt="${restaurant.name}" class="w-full h-64 object-cover rounded-lg">` 
-          : ''
-        }
-        <h1 class="text-2xl font-bold">${restaurant.name}</h1>
-        <p class="text-gray-600">${restaurant.address}</p>
-        <div class="flex items-center">
-          <span class="text-yellow-400 text-lg">${"★".repeat(Math.round(restaurant.average_rating))}${"☆".repeat(5 - Math.round(restaurant.average_rating))}</span>
-          <span class="ml-2 text-gray-600">${restaurant.average_rating.toFixed(1)} (${restaurant.reviews_count || 0} reviews)</span>
-        </div>
-        ${restaurant.price_level ? 
-          `<p class="text-gray-600">Price: ${restaurant.price_level}</p>` 
-          : ''
-        }
-        ${restaurant.cuisine ? 
-          `<p class="text-gray-600">Cuisine: ${restaurant.cuisine}</p>`
-          : ''
-        }
-        <button class="favorite-button p-2 text-gray-400 hover:text-red-500" data-place-id="${restaurant.place_id}">
-          <svg class="h-6 w-6" fill="${favorites.has(restaurant.place_id) ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
-      </div>
-    `;
-
-    detailView.classList.remove('hidden');
-    updateFavoriteButtons();
-  }
-}
-
-function highlightListItem(placeId) {
-  const items = document.querySelectorAll('.restaurant-item');
-  items.forEach(item => {
-    item.classList.remove('bg-gray-100');
-    if (item.dataset.placeId === placeId) {
-      item.classList.add('bg-gray-100');
-      item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  });
-}
-
-function toggleFavorite(placeId) {
-  if (favorites.has(placeId)) {
-    favorites.delete(placeId);
+function toggleFavorite(restaurantId) {
+  if (favorites.has(restaurantId)) {
+    favorites.delete(restaurantId);
   } else {
-    favorites.add(placeId);
+    favorites.add(restaurantId);
   }
   localStorage.setItem('favorites', JSON.stringify(Array.from(favorites)));
   updateFavoriteButtons();
@@ -140,8 +87,8 @@ function toggleFavorite(placeId) {
 
 function updateFavoriteButtons() {
   document.querySelectorAll('.favorite-button').forEach(button => {
-    const placeId = button.dataset.placeId;
-    const isFavorite = favorites.has(placeId);
+    const restaurantId = button.dataset.restaurantId;
+    const isFavorite = favorites.has(restaurantId);
     button.querySelector('svg').setAttribute('fill', isFavorite ? 'currentColor' : 'none');
     button.classList.toggle('text-red-500', isFavorite);
     button.classList.toggle('text-gray-400', !isFavorite);
@@ -149,23 +96,12 @@ function updateFavoriteButtons() {
 }
 
 function setupEventListeners() {
-  // Back button
-  document.getElementById('backToList')?.addEventListener('click', () => {
-    document.getElementById('restaurantDetail')?.classList.add('hidden');
-  });
-
   // Restaurant item click
   document.body.addEventListener('click', (e) => {
     const restaurantItem = e.target.closest('.restaurant-item');
     if (restaurantItem && !e.target.closest('.favorite-button')) {
-      const placeId = restaurantItem.dataset.placeId;
-      showRestaurantDetail(placeId);
-      
-      const marker = markers.get(placeId);
-      if (marker) {
-        map.panTo(marker.getPosition());
-        map.setZoom(16);
-      }
+      const restaurantId = restaurantItem.dataset.restaurantId;
+      window.location.href = `/restaurants/${restaurantId}`;
     }
   });
 
@@ -175,8 +111,8 @@ function setupEventListeners() {
       e.preventDefault();
       e.stopPropagation();
       const button = e.target.closest('.favorite-button');
-      const placeId = button.dataset.placeId;
-      toggleFavorite(placeId);
+      const restaurantId = button.dataset.restaurantId;
+      toggleFavorite(restaurantId);
     }
   });
 
@@ -262,7 +198,7 @@ function filterRestaurants() {
   }
 
   if (showFavorites) {
-    filteredRestaurants = filteredRestaurants.filter(r => favorites.has(r.place_id));
+    filteredRestaurants = filteredRestaurants.filter(r => favorites.has(r.id.toString()));
   }
 
   switch (sortBy) {
@@ -300,8 +236,7 @@ function updateRestaurantList(restaurants) {
   restaurants.forEach(restaurant => {
     const restaurantElement = document.createElement('div');
     restaurantElement.className = 'restaurant-item p-6 hover:bg-gray-50 cursor-pointer';
-    restaurantElement.dataset.placeId = restaurant.place_id;
-    restaurantElement.dataset.restaurant = JSON.stringify(restaurant);
+    restaurantElement.dataset.restaurantId = restaurant.id;
 
     restaurantElement.innerHTML = `
       <div class="flex gap-4">
@@ -312,8 +247,8 @@ function updateRestaurantList(restaurants) {
         <div class="flex-1 min-w-0 space-y-2">
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 truncate">${restaurant.name}</h3>
-            <button class="favorite-button p-1 text-gray-400 hover:text-red-500" data-place-id="${restaurant.place_id}">
-              <svg class="h-6 w-6" fill="${favorites.has(restaurant.place_id) ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+            <button class="favorite-button p-1 text-gray-400 hover:text-red-500" data-restaurant-id="${restaurant.id}">
+              <svg class="h-6 w-6" fill="${favorites.has(restaurant.id.toString()) ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </button>

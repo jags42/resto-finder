@@ -16,5 +16,11 @@ Rails.application.routes.draw do
   
   get '/restaurants', to: 'restaurants#index'
   get 'restaurants/search', to: 'restaurants#search', as: 'restaurants_search'
+  post '/restaurants/:id/toggle_favorite', to: 'restaurants#toggle_favorite'
   
+  resources :restaurants do
+    member do
+      post 'reviews', to: 'restaurants#create_review'
+    end
+  end
 end

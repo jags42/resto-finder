@@ -1,0 +1,70 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+    <% if @restaurant.photo_url.present? %>
+      <img src="<%= @restaurant.photo_url %>" alt="<%= @restaurant.name %>" class="w-full h-64 object-cover">
+    <% end %>
+    <div class="p-6">
+      <h1 class="text-3xl font-bold mb-2"><%= @restaurant.name %></h1>
+      <p class="text-gray-600 mb-4"><%= @restaurant.address %></p>
+      <div class="flex items-center mb-4">
+        <span class="text-yellow-400 text-2xl"><%= "★" * @average_rating.round %><%= "☆" * (5 - @average_rating.round) %></span>
+        <span class="ml-2 text-gray-600">(<%= @restaurant.reviews.count %> reviews)</span>
+      </div>
+      <% if @restaurant.price_level.present? %>
+        <p class="text-gray-600 mb-4">Price: <%= @restaurant.price_level %></p>
+      <% end %>
+      <% if @restaurant.cuisine.present? %>
+        <p class="text-gray-600 mb-4">Cuisine: <%= @restaurant.cuisine %></p>
+      <% end %>
+      
+      <h2 class="text-2xl font-bold mt-8 mb-4">Reviews</h2>
+      <% if user_signed_in? %>
+        <div class="mb-8">
+          <h3 class="text-xl font-semibold mb-4">
+            <%= @user_review ? "Edit Your Review" : "Write a Review" %>
+          </h3>
+          <%= render 'review_form', restaurant: @restaurant, review: @user_review || Review.new %>
+        </div>
+      <% end %>
+
+      <% if @reviews.any? %>
+        <div class="space-y-6">
+          <% @reviews.each do |review| %>
+            <div class="border-b border-gray-200 pb-4">
+              <div class="flex items-center mb-2">
+                <span class="text-yellow-400"><%= "★" * review.rating %><%= "☆" * (5 - review.rating) %></span>
+                <span class="ml-2 font-semibold"><%= review.user.email %></span>
+                <span class="ml-2 text-gray-500"><%= review.created_at.strftime("%B %d, %Y") %></span>
+              </div>
+              <p class="text-gray-700"><%= review.comment %></p>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-gray-600">No reviews yet. Be the first to review!</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const ratingInputs = document.querySelectorAll('input[name="review[rating]"]');
+  const ratingLabels = document.querySelectorAll('label[for^="star-"]');
+
+  ratingInputs.forEach((input, index) => {
+    input.addEventListener('change', () => {
+      ratingLabels.forEach((label, labelIndex) => {
+        if (labelIndex <= index) {
+          label.classList.add('text-yellow-400');
+          label.classList.remove('text-gray-300');
+        } else {
+          label.classList.remove('text-yellow-400');
+          label.classList.add('text-gray-300');
+        }
+      });
+    });
+  });
+});
+</script>
+
