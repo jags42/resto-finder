@@ -70,52 +70,63 @@
     </div>
 
     <!-- Results Section -->
-    <div class="flex-1 overflow-auto" id="resultsList">
-      <% if @restaurants.present? %>
-        <div class="divide-y divide-gray-200">
-          <% @restaurants.each do |restaurant| %>
-            <div class="restaurant-item p-4 hover:bg-gray-50 cursor-pointer" data-place-id="<%= restaurant.place_id %>">
-              <div class="flex gap-4">
-                <% if restaurant.photo_url.present? %>
-                  <img src="<%= restaurant.photo_url %>" alt="<%= restaurant.name %>" class="w-24 h-24 object-cover rounded-lg">
-                <% end %>
-                <div class="flex-1 min-w-0">
-                  <h3 class="text-lg font-semibold text-gray-900"><%= restaurant.name %></h3>
-                  <p class="text-sm text-gray-500 truncate"><%= restaurant.address %></p>
-                  <div class="flex items-center mt-1">
-                    <div class="flex items-center">
-                      <span class="text-yellow-400"><%= "★" * restaurant.average_rating.to_i %><%= "☆" * (5 - restaurant.average_rating.to_i) %></span>
-                      <span class="ml-1 text-sm text-gray-600">(<%= restaurant.reviews.count %>)</span>
-                    </div>
-                    <% if restaurant.price_level.present? %>
-                      <span class="ml-2 text-sm text-gray-600"><%= restaurant.price_level %></span>
-                    <% end %>
-                  </div>
-                  <% if restaurant.cuisine.present? %>
-                    <div class="mt-1">
-                      <% restaurant.cuisine.split(', ').each do |cuisine| %>
-                        <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full mr-1"><%= cuisine %></span>
-                      <% end %>
-                    </div>
-                  <% end %>
+<div class="flex-1 overflow-auto" id="resultsList">
+  <% if @restaurants.present? %>
+    <div class="divide-y divide-gray-200">
+      <% @restaurants.each do |restaurant| %>
+        <div class="restaurant-item p-6 hover:bg-gray-50 cursor-pointer" data-place-id="<%= restaurant.place_id %>" data-restaurant="<%= restaurant.to_json %>">
+          <div class="flex gap-4">
+            <% if restaurant.photo_url.present? %>
+              <img src="<%= restaurant.photo_url %>" alt="<%= restaurant.name %>" class="w-24 h-24 object-cover rounded-lg">
+            <% end %>
+            <div class="flex-1 min-w-0 space-y-2">
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900 truncate"><%= restaurant.name %></h3>
+                <button class="favorite-button p-1 text-gray-400 hover:text-red-500" data-place-id="<%= restaurant.place_id %>">
+                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </button>
+              </div>
+              <p class="text-sm text-gray-500"><%= restaurant.address %></p>
+              <div class="flex items-center gap-4">
+                <div class="flex items-center">
+                  <span class="text-yellow-400 text-lg"><%= "★" * restaurant.average_rating.to_i %><%= "☆" * (5 - restaurant.average_rating.to_i) %></span>
+                  <span class="ml-1 text-sm text-gray-600">(<%= restaurant.reviews_count %>)</span>
                 </div>
-                <% if user_signed_in? %>
-                  <button class="favorite-button p-2 text-gray-400 hover:text-red-500" data-place-id="<%= restaurant.place_id %>" data-restaurant-id="<%= restaurant.id %>">
-                    <svg class="h-6 w-6" fill="<%= restaurant.is_favorite ? 'currentColor' : 'none' %>" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </button>
+                <% if restaurant.price_level.present? %>
+                  <div class="flex items-center">
+                    <% price_level_indicator = case restaurant.price_level
+                       when "Free" then 0
+                       when "Inexpensive" then 1
+                       when "Moderate" then 2
+                       when "Expensive" then 3
+                       when "Very Expensive" then 4
+                       else 0
+                       end %>
+                    <span class="text-gray-400"><%= "$" * price_level_indicator %></span>
+                    <span class="ml-1 text-xs text-gray-500"><%= restaurant.price_level %></span>
+                  </div>
                 <% end %>
               </div>
+              <% if restaurant.cuisine.present? %>
+                <div class="flex flex-wrap gap-1">
+                  <% restaurant.cuisine.split(', ').each do |cuisine| %>
+                    <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full"><%= cuisine %></span>
+                  <% end %>
+                </div>
+              <% end %>
             </div>
-          <% end %>
-        </div>
-      <% elsif params[:address].present? %>
-        <div class="p-4 text-gray-500 text-center">
-          No restaurants found for the specified location.
+          </div>
         </div>
       <% end %>
     </div>
+  <% elsif params[:address].present? %>
+    <div class="p-4 text-gray-500 text-center">
+      No restaurants found for the specified location.
+    </div>
+  <% end %>
+</div>
 
     <!-- Detailed View (Initially Hidden) -->
     <div id="restaurantDetail" class="hidden absolute inset-0 bg-white z-10">

@@ -93,11 +93,11 @@ function showRestaurantDetail(placeId) {
         <h1 class="text-2xl font-bold">${restaurant.name}</h1>
         <p class="text-gray-600">${restaurant.address}</p>
         <div class="flex items-center">
-          <span class="text-yellow-400 text-lg">${"★".repeat(Math.round(restaurant.ratings))}${"☆".repeat(5 - Math.round(restaurant.ratings))}</span>
-          <span class="ml-2 text-gray-600">${restaurant.ratings.toFixed(1)} (${restaurant.reviews_count} reviews)</span>
+          <span class="text-yellow-400 text-lg">${"★".repeat(Math.round(restaurant.average_rating))}${"☆".repeat(5 - Math.round(restaurant.average_rating))}</span>
+          <span class="ml-2 text-gray-600">${restaurant.average_rating.toFixed(1)} (${restaurant.reviews_count || 0} reviews)</span>
         </div>
         ${restaurant.price_level ? 
-          `<p class="text-gray-600">Price: ${(restaurant.price_level)}</p>` 
+          `<p class="text-gray-600">Price: ${restaurant.price_level}</p>` 
           : ''
         }
         ${restaurant.cuisine ? 
@@ -108,7 +108,6 @@ function showRestaurantDetail(placeId) {
           <svg class="h-6 w-6" fill="${favorites.has(restaurant.place_id) ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
-          ${favorites.has(restaurant.place_id) ? 'Remove from Favorites' : 'Add to Favorites'}
         </button>
       </div>
     `;
@@ -146,7 +145,6 @@ function updateFavoriteButtons() {
     button.querySelector('svg').setAttribute('fill', isFavorite ? 'currentColor' : 'none');
     button.classList.toggle('text-red-500', isFavorite);
     button.classList.toggle('text-gray-400', !isFavorite);
-    button.textContent = isFavorite ? 'Remove from Favorites' : 'Add to Favorites';
   });
 }
 
@@ -269,16 +267,18 @@ function filterRestaurants() {
 
   switch (sortBy) {
     case 'rating':
-      filteredRestaurants.sort((a, b) => b.ratings - a.ratings);
+      filteredRestaurants.sort((a, b) => b.average_rating - a.average_rating);
       break;
     case 'reviews':
-      filteredRestaurants.sort((a, b) => b.reviews_count - a.reviews_count);
+      filteredRestaurants.sort((a, b) => (b.reviews_count || 0) - (a.reviews_count || 0));
       break;
     case 'price_asc':
-      filteredRestaurants.sort((a, b) => (a.price_level || 0) - (b.price_level || 0));
+      const priceOrder = ['Free', 'Inexpensive', 'Moderate', 'Expensive', 'Very Expensive'];
+      filteredRestaurants.sort((a, b) => priceOrder.indexOf(a.price_level) - priceOrder.indexOf(b.price_level));
       break;
     case 'price_desc':
-      filteredRestaurants.sort((a, b) => (b.price_level || 0) - (a.price_level || 0));
+      const priceOrderDesc = ['Very Expensive', 'Expensive', 'Moderate', 'Inexpensive', 'Free'];
+      filteredRestaurants.sort((a, b) => priceOrderDesc.indexOf(a.price_level) - priceOrderDesc.indexOf(b.price_level));
       break;
   }
 
@@ -290,28 +290,50 @@ function updateRestaurantList(restaurants) {
   const resultsList = document.getElementById('resultsList');
   if (!resultsList) return;
 
-  resultsList.innerHTML = restaurants.map(restaurant => `
-    <div class="restaurant-item p-4 hover:bg-gray-50 cursor-pointer" data-place-id="${restaurant.place_id}">
+  // Clear existing restaurant items
+  resultsList.innerHTML = '';
+
+  // Create a new container for restaurant items
+  const container = document.createElement('div');
+  container.className = 'divide-y divide-gray-200';
+
+  restaurants.forEach(restaurant => {
+    const restaurantElement = document.createElement('div');
+    restaurantElement.className = 'restaurant-item p-6 hover:bg-gray-50 cursor-pointer';
+    restaurantElement.dataset.placeId = restaurant.place_id;
+    restaurantElement.dataset.restaurant = JSON.stringify(restaurant);
+
+    restaurantElement.innerHTML = `
       <div class="flex gap-4">
         ${restaurant.photo_url ? 
           `<img src="${restaurant.photo_url}" alt="${restaurant.name}" class="w-24 h-24 object-cover rounded-lg">` 
           : ''
         }
-        <div class="flex-1 min-w-0">
-          <h3 class="text-lg font-semibold text-gray-900">${restaurant.name}</h3>
-          <p class="text-sm text-gray-500 truncate">${restaurant.address}</p>
-          <div class="flex items-center mt-1">
+        <div class="flex-1 min-w-0 space-y-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-900 truncate">${restaurant.name}</h3>
+            <button class="favorite-button p-1 text-gray-400 hover:text-red-500" data-place-id="${restaurant.place_id}">
+              <svg class="h-6 w-6" fill="${favorites.has(restaurant.place_id) ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </button>
+          </div>
+          <p class="text-sm text-gray-500">${restaurant.address}</p>
+          <div class="flex items-center gap-4">
             <div class="flex items-center">
-              <span class="text-yellow-400">${"★".repeat(Math.round(restaurant.ratings))}${"☆".repeat(5 - Math.round(restaurant.ratings))}</span>
-              <span class="ml-1 text-sm text-gray-600">(${restaurant.reviews_count})</span>
+              <span class="text-yellow-400 text-lg">${"★".repeat(Math.round(restaurant.average_rating))}${"☆".repeat(5 - Math.round(restaurant.average_rating))}</span>
+              <span class="ml-1 text-sm text-gray-600">(${restaurant.reviews_count || 0})</span>
             </div>
             ${restaurant.price_level ? 
-              `<span class="ml-2 text-sm text-gray-600">${(restaurant.price_level)}</span>` 
+              `<div class="flex items-center">
+                <span class="text-gray-400">${"$".repeat(getPriceLevelIndicator(restaurant.price_level))}</span>
+                <span class="ml-1 text-xs text-gray-500">${restaurant.price_level}</span>
+              </div>`
               : ''
             }
           </div>
           ${restaurant.cuisine ? 
-            `<div class="mt-1 flex flex-wrap gap-1">
+            `<div class="flex flex-wrap gap-1">
               ${restaurant.cuisine.split(', ').map(cuisine => 
                 `<span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">${cuisine}</span>`
               ).join('')}
@@ -319,16 +341,25 @@ function updateRestaurantList(restaurants) {
             : ''
           }
         </div>
-        <button class="favorite-button p-2 text-gray-400 hover:text-red-500" data-place-id="${restaurant.place_id}">
-          <svg class="h-6 w-6" fill="${favorites.has(restaurant.place_id) ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
       </div>
-    </div>
-  `).join('');
+    `;
 
+    container.appendChild(restaurantElement);
+  });
+
+  resultsList.appendChild(container);
   updateFavoriteButtons();
+}
+
+function getPriceLevelIndicator(priceLevel) {
+  switch (priceLevel) {
+    case "Free": return 0;
+    case "Inexpensive": return 1;
+    case "Moderate": return 2;
+    case "Expensive": return 3;
+    case "Very Expensive": return 4;
+    default: return 0;
+  }
 }
 
 // Initialize when DOM is loaded
