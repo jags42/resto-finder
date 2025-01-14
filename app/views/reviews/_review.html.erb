@@ -1,0 +1,43 @@
+<div class="border-b border-gray-200 pb-4 mb-4" id="review-<%= review.id %>">
+  <div class="flex items-center mb-2">
+    <span class="text-yellow-400"><%= "★" * review.rating %><%= "☆" * (5 - review.rating) %></span>
+    <span class="ml-2 font-semibold"><%= review.user.email %></span>
+    <span class="ml-2 text-gray-500"><%= review.created_at.strftime("%B %d, %Y") %></span>
+  </div>
+  <div class="review-content">
+    <p class="text-gray-700"><%= review.comment %></p>
+  </div>
+  <% if review.user == current_user %>
+    <div class="mt-2 flex space-x-2">
+      <button class="edit-review-btn text-blue-500 hover:text-blue-700" data-review-id="<%= review.id %>">
+        Edit
+      </button>
+      <%= button_to "Delete", restaurant_review_path(review.restaurant, review), method: :delete, data: { confirm: "Are you sure you want to delete this review?" }, class: "text-red-500 hover:text-red-700" %>
+    </div>
+    <div class="edit-form hidden mt-2" id="edit-form-<%= review.id %>">
+      <%= form_with(model: [review.restaurant, review], local: true, class: "space-y-4") do |form| %>
+        <div>
+          <%= form.label :rating, class: "block text-sm font-medium text-gray-700" %>
+          <div class="mt-1 flex items-center space-x-2">
+            <% (1..5).each do |star| %>
+              <%= form.radio_button :rating, star, class: "hidden peer", id: "edit-star-#{review.id}-#{star}" %>
+              <label for="edit-star-<%= review.id %>-<%= star %>" class="cursor-pointer text-2xl <%= review.rating && review.rating >= star ? 'text-yellow-400' : 'text-gray-300' %> peer-checked:text-yellow-400">
+                ★
+              </label>
+            <% end %>
+          </div>
+        </div>
+        <div>
+          <%= form.text_area :comment, rows: 3, class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border-gray-300 rounded-md" %>
+        </div>
+        <div class="flex space-x-2">
+          <%= form.submit "Update Review", class: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+          <button type="button" class="cancel-edit-btn inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Cancel
+          </button>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+

@@ -1,4 +1,7 @@
 <div class="container mx-auto px-4 py-8">
+  <div class="mb-4">
+    <%= link_to "Back to Search Results", :back, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+  </div>
   <div class="bg-white shadow-lg rounded-lg overflow-hidden">
     <% if @restaurant.photo_url.present? %>
       <img src="<%= @restaurant.photo_url %>" alt="<%= @restaurant.name %>" class="w-full h-64 object-cover">
@@ -17,28 +20,21 @@
         <p class="text-gray-600 mb-4">Cuisine: <%= @restaurant.cuisine %></p>
       <% end %>
       
+      <%= button_to "Toggle Favorite", restaurant_toggle_favorite_path(@restaurant), method: :post, remote: true, class: "favorite-button bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded", data: { restaurant_id: @restaurant.id } %>
+
       <h2 class="text-2xl font-bold mt-8 mb-4">Reviews</h2>
       <% if user_signed_in? %>
         <div class="mb-8">
           <h3 class="text-xl font-semibold mb-4">
             <%= @user_review ? "Edit Your Review" : "Write a Review" %>
           </h3>
-          <%= render 'review_form', restaurant: @restaurant, review: @user_review || Review.new %>
+          <%= render 'reviews/form', restaurant: @restaurant, review: @user_review || Review.new %>
         </div>
       <% end %>
 
       <% if @reviews.any? %>
-        <div class="space-y-6">
-          <% @reviews.each do |review| %>
-            <div class="border-b border-gray-200 pb-4">
-              <div class="flex items-center mb-2">
-                <span class="text-yellow-400"><%= "★" * review.rating %><%= "☆" * (5 - review.rating) %></span>
-                <span class="ml-2 font-semibold"><%= review.user.email %></span>
-                <span class="ml-2 text-gray-500"><%= review.created_at.strftime("%B %d, %Y") %></span>
-              </div>
-              <p class="text-gray-700"><%= review.comment %></p>
-            </div>
-          <% end %>
+        <div class="space-y-6" id="reviews-container">
+          <%= render partial: 'reviews/review', collection: @reviews %>
         </div>
       <% else %>
         <p class="text-gray-600">No reviews yet. Be the first to review!</p>
@@ -47,23 +43,29 @@
   </div>
 </div>
 
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const ratingInputs = document.querySelectorAll('input[name="review[rating]"]');
-  const ratingLabels = document.querySelectorAll('label[for^="star-"]');
+  const reviewsContainer = document.getElementById('reviews-container');
 
-  ratingInputs.forEach((input, index) => {
-    input.addEventListener('change', () => {
-      ratingLabels.forEach((label, labelIndex) => {
-        if (labelIndex <= index) {
-          label.classList.add('text-yellow-400');
-          label.classList.remove('text-gray-300');
-        } else {
-          label.classList.remove('text-yellow-400');
-          label.classList.add('text-gray-300');
-        }
-      });
-    });
+  reviewsContainer.addEventListener('click', function(e) {
+    if (e.target.classList.contains('edit-review-btn')) {
+      const reviewId = e.target.dataset.reviewId;
+      const reviewContent = e.target.closest('.border-b').querySelector('.review-content');
+      const editForm = document.getElementById(`edit-form-${reviewId}`);
+      
+      reviewContent.classList.add('hidden');
+      editForm.classList.remove('hidden');
+    }
+
+    if (e.target.classList.contains('cancel-edit-btn')) {
+      const reviewItem = e.target.closest('.border-b');
+      const reviewContent = reviewItem.querySelector('.review-content');
+      const editForm = reviewItem.querySelector('.edit-form');
+      
+      reviewContent.classList.remove('hidden');
+      editForm.classList.add('hidden');
+    }
   });
 });
 </script>

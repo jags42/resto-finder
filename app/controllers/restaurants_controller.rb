@@ -1,6 +1,6 @@
 class RestaurantsController < ApplicationController
-  before_action :authenticate_user!, except: [:search]
-  before_action :set_restaurant, only: [:show, :create_review]
+  before_action :authenticate_user!, except: [:search, :show]
+  before_action :set_restaurant, only: [:show]
 
   def search
     Rails.logger.debug "=== Starting Restaurant Search ==="
@@ -61,6 +61,14 @@ class RestaurantsController < ApplicationController
 
         # Apply filters
         @restaurants = filter_restaurants(@restaurants, cuisine, sort_by, show_favorites)
+
+        # Add favorite status for each restaurant
+        if user_signed_in?
+          favorite_restaurant_ids = current_user.favorites.pluck(:restaurant_id)
+          @restaurants = @restaurants.map do |restaurant|
+            restaurant.as_json.merge(is_favorite: favorite_restaurant_ids.include?(restaurant.id))
+          end
+        end
       else
         flash.now[:notice] = "No restaurants found for the specified location"
         @restaurants = []
@@ -82,36 +90,8 @@ class RestaurantsController < ApplicationController
     @reviews = @restaurant.reviews.includes(:user).order(created_at: :desc)
     @average_rating = @restaurant.average_rating
     @user_review = @restaurant.reviews.find_by(user: current_user) if user_signed_in?
-  end
-
-  def create_review
-    @review = @restaurant.reviews.find_or_initialize_by(user: current_user)
-    @review.assign_attributes(review_params)
-
-    if @review.save
-      @restaurant.update_ratings_data
-      redirect_to @restaurant, notice: 'Review was successfully created.'
-    else
-      @reviews = @restaurant.reviews.includes(:user).order(created_at: :desc)
-      @average_rating = @restaurant.average_rating
-      flash.now[:alert] = @review.errors.full_messages.to_sentence
-      render :show
-    end
-  end
-
-  def toggle_favorite
-    restaurant = Restaurant.find(params[:id])
-    favorite = current_user.favorites.find_or_initialize_by(restaurant: restaurant)
-    
-    if favorite.persisted?
-      favorite.destroy
-      is_favorite = false
-    else
-      favorite.save
-      is_favorite = true
-    end
-
-    render json: { is_favorite: is_favorite }
+    @review = Review.new
+    @is_favorite = user_signed_in? && current_user.favorites.exists?(restaurant: @restaurant)
   end
 
   private
@@ -164,9 +144,4 @@ class RestaurantsController < ApplicationController
   def set_restaurant
     @restaurant = Restaurant.find(params[:id])
   end
-
-  def review_params
-    params.require(:review).permit(:rating, :comment)
-  end
 end
-

@@ -82,8 +82,8 @@
                 <div class="flex-1 min-w-0 space-y-2">
                   <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-900 truncate"><%= restaurant.name %></h3>
-                    <button class="favorite-button p-1 text-gray-400 hover:text-red-500" data-restaurant-id="<%= restaurant.id %>">
-                      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button class="favorite-button p-1 text-gray-400 hover:text-red-500" data-restaurant-id="<%= restaurant.id %>" data-favorite="<%= current_user&.favorite_restaurants&.include?(restaurant) %>">
+                      <svg class="h-6 w-6" fill="<%= current_user&.favorite_restaurants&.include?(restaurant) ? 'currentColor' : 'none' %>" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                       </svg>
                     </button>
@@ -136,6 +136,7 @@
 </div>
 
 <script>
-  const restaurants = <%= raw @restaurants.to_json(only: [:id, :name, :latitude, :longitude, :address, :place_id, :price_level, :cuisine, :photo_url], methods: [:average_rating, :reviews_count]) %>;
+const restaurants = <%= raw @restaurants.to_json(only: [:id, :name, :latitude, :longitude, :address, :place_id, :price_level, :cuisine, :photo_url], methods: [:average_rating, :reviews_count]) %>;
 </script>
+<%= content_tag :div, @restaurants.to_json.html_safe, id: "restaurants-data", style: "display: none;" %>
 

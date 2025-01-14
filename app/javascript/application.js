@@ -6,7 +6,6 @@ import "controllers"
 let map;
 let markers = new Map();
 let activeInfoWindow = null;
-let favorites = new Set(JSON.parse(localStorage.getItem('favorites') || '[]'));
 let restaurants = [];
 let allCuisines = new Set();
 
@@ -75,24 +74,49 @@ function clearMap() {
   markers.clear();
 }
 
-function toggleFavorite(restaurantId) {
-  if (favorites.has(restaurantId)) {
-    favorites.delete(restaurantId);
-  } else {
-    favorites.add(restaurantId);
-  }
-  localStorage.setItem('favorites', JSON.stringify(Array.from(favorites)));
-  updateFavoriteButtons();
+function toggleFavorite(button) {
+  const restaurantId = button.dataset.restaurantId;
+
+  fetch(`/restaurants/${restaurantId}/toggle_favorite`, {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    credentials: 'same-origin'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      console.error('Error:', data.error);
+      return;
+    }
+    updateFavoriteButton(button, data.is_favorite);
+    updateRestaurantFavoriteStatus(restaurantId, data.is_favorite);
+  })
+  .catch(error => console.error('Error:', error));
 }
 
-function updateFavoriteButtons() {
-  document.querySelectorAll('.favorite-button').forEach(button => {
-    const restaurantId = button.dataset.restaurantId;
-    const isFavorite = favorites.has(restaurantId);
-    button.querySelector('svg').setAttribute('fill', isFavorite ? 'currentColor' : 'none');
-    button.classList.toggle('text-red-500', isFavorite);
-    button.classList.toggle('text-gray-400', !isFavorite);
-  });
+function updateFavoriteButton(button, isFavorite) {
+  const svg = button.querySelector('svg');
+  if (isFavorite) {
+    svg.setAttribute('fill', 'currentColor');
+    button.classList.add('text-red-500');
+    button.classList.remove('text-gray-400');
+  } else {
+    svg.setAttribute('fill', 'none');
+    button.classList.remove('text-red-500');
+    button.classList.add('text-gray-400');
+  }
+}
+
+function updateRestaurantFavoriteStatus(restaurantId, isFavorite) {
+  const restaurant = restaurants.find(r => r.id === parseInt(restaurantId));
+  if (restaurant) {
+    restaurant.is_favorite = isFavorite;
+  }
+  filterRestaurants(); // Re-apply filters to update the list if necessary
 }
 
 function setupEventListeners() {
@@ -111,8 +135,7 @@ function setupEventListeners() {
       e.preventDefault();
       e.stopPropagation();
       const button = e.target.closest('.favorite-button');
-      const restaurantId = button.dataset.restaurantId;
-      toggleFavorite(restaurantId);
+      toggleFavorite(button);
     }
   });
 
@@ -198,7 +221,7 @@ function filterRestaurants() {
   }
 
   if (showFavorites) {
-    filteredRestaurants = filteredRestaurants.filter(r => favorites.has(r.id.toString()));
+    filteredRestaurants = filteredRestaurants.filter(r => r.is_favorite);
   }
 
   switch (sortBy) {
@@ -247,8 +270,8 @@ function updateRestaurantList(restaurants) {
         <div class="flex-1 min-w-0 space-y-2">
           <div class="flex items-center justify-between">
             <h3 class="text-lg font-semibold text-gray-900 truncate">${restaurant.name}</h3>
-            <button class="favorite-button p-1 text-gray-400 hover:text-red-500" data-restaurant-id="${restaurant.id}">
-              <svg class="h-6 w-6" fill="${favorites.has(restaurant.id.toString()) ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+            <button class="favorite-button p-1 text-gray-400 hover:text-red-500" data-restaurant-id="${restaurant.id}" data-favorite="${restaurant.is_favorite}">
+              <svg class="h-6 w-6" fill="${restaurant.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </button>
@@ -283,7 +306,6 @@ function updateRestaurantList(restaurants) {
   });
 
   resultsList.appendChild(container);
-  updateFavoriteButtons();
 }
 
 function getPriceLevelIndicator(priceLevel) {
@@ -303,6 +325,19 @@ document.addEventListener("DOMContentLoaded", () => {
     initMap();
   }
   setupEventListeners();
-  updateFavoriteButtons();
+
+  // Initialize restaurants array with data from the server
+  restaurants = JSON.parse(document.getElementById('restaurants-data').textContent);
+
+  // Update favorite status for each restaurant
+  restaurants.forEach(restaurant => {
+    const favoriteButton = document.querySelector(`.favorite-button[data-restaurant-id="${restaurant.id}"]`);
+    if (favoriteButton) {
+      updateFavoriteButton(favoriteButton, restaurant.is_favorite);
+    }
+  });
+
+  // Initial filtering and display
+  filterRestaurants();
 });
 

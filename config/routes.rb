@@ -1,26 +1,19 @@
 Rails.application.routes.draw do
   devise_for :users
   root 'restaurants#index'
-  get "restaurants/index"
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+
+  get 'restaurants/search', to: 'restaurants#search', as: 'restaurants_search'
+
+  resources :restaurants, only: [:index, :show] do
+    resources :reviews, only: [:create, :edit, :update, :destroy]
+    post 'toggle_favorite', to: 'favorites#toggle'
+  end
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
-  # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
   # Render dynamic PWA files from app/views/pwa/*
   get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
   get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
-
-  # Defines the root path route ("/")
-  
-  get '/restaurants', to: 'restaurants#index'
-  get 'restaurants/search', to: 'restaurants#search', as: 'restaurants_search'
-  post '/restaurants/:id/toggle_favorite', to: 'restaurants#toggle_favorite'
-  
-  resources :restaurants do
-    member do
-      post 'reviews', to: 'restaurants#create_review'
-    end
-  end
 end
+

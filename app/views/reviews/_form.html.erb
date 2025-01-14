@@ -1,4 +1,4 @@
-<%= form_with(model: [restaurant, review], url: reviews_restaurant_path(restaurant), method: :post, local: true, class: "mt-8 space-y-6") do |form| %>
+<%= form_with(model: [@restaurant, review], url: restaurant_reviews_path(@restaurant), local: true, class: "mt-8 space-y-6") do |form| %>
     <div>
       <%= form.label :rating, class: "block text-sm font-medium text-gray-700" %>
       <div class="mt-1 flex items-center space-x-2">
