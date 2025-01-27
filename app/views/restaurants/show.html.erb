@@ -10,7 +10,7 @@
       <h1 class="text-3xl font-bold mb-2"><%= @restaurant.name %></h1>
       <p class="text-gray-600 mb-4"><%= @restaurant.address %></p>
       <div class="flex items-center mb-4">
-        <span class="text-yellow-400 text-2xl"><%= "★" * @average_rating.round %><%= "☆" * (5 - @average_rating.round) %></span>
+        <span class="text-yellow-400 text-2xl"><%= "★" * @restaurant.average_rating.round %><%= "☆" * (5 - @restaurant.average_rating.round) %></span>
         <span class="ml-2 text-gray-600">(<%= @restaurant.reviews.count %> reviews)</span>
       </div>
       <% if @restaurant.price_level.present? %>
@@ -19,16 +19,16 @@
       <% if @restaurant.cuisine.present? %>
         <p class="text-gray-600 mb-4">Cuisine: <%= @restaurant.cuisine %></p>
       <% end %>
-      
+
       <%= button_to "Toggle Favorite", restaurant_toggle_favorite_path(@restaurant), method: :post, remote: true, class: "favorite-button bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded", data: { restaurant_id: @restaurant.id } %>
 
       <h2 class="text-2xl font-bold mt-8 mb-4">Reviews</h2>
       <% if user_signed_in? %>
         <div class="mb-8">
           <h3 class="text-xl font-semibold mb-4">
-            <%= @user_review ? "Edit Your Review" : "Write a Review" %>
+            <%= @review&.persisted? ? "Edit Your Review" : "Write a Review" %>
           </h3>
-          <%= render 'reviews/form', restaurant: @restaurant, review: @user_review || Review.new %>
+          <%= render 'reviews/form', restaurant: @restaurant, review: @review || Review.new %>
         </div>
       <% end %>
 
@@ -42,7 +42,6 @@
     </div>
   </div>
 </div>
-
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -67,6 +66,45 @@ document.addEventListener('DOMContentLoaded', function() {
       editForm.classList.add('hidden');
     }
   });
+
+  const starRating = document.querySelector('.star-rating');
+  if (starRating) {
+    const stars = starRating.querySelectorAll('.star');
+    const ratingInput = starRating.querySelector('input[type="radio"]:checked');
+    const currentRating = ratingInput ? parseInt(ratingInput.value) : parseInt(starRating.dataset.rating);
+
+    function updateStars(rating) {
+      stars.forEach((star, index) => {
+        if (index < rating) {
+          star.textContent = '★';
+          star.classList.add('text-yellow-400');
+        } else {
+          star.textContent = '☆';
+          star.classList.remove('text-yellow-400');
+        }
+      });
+    }
+
+    updateStars(currentRating);
+
+    stars.forEach((star, index) => {
+      star.addEventListener('mouseenter', () => {
+        updateStars(index + 1);
+      });
+
+      star.addEventListener('mouseleave', () => {
+        updateStars(currentRating);
+      });
+
+      star.addEventListener('click', () => {
+        const rating = index + 1;
+        const ratingInput = starRating.querySelector(`input[value="${rating}"]`);
+        ratingInput.checked = true;
+        currentRating = rating;
+        updateStars(rating);
+      });
+    });
+  }
 });
 </script>
 

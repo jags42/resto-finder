@@ -8,12 +8,16 @@ let markers = new Map();
 let activeInfoWindow = null;
 let restaurants = [];
 let allCuisines = new Set();
+let favoriteRequestInProgress = false;
 
 // Initialize map function
 window.initMap = function() {
+  const mapElement = document.getElementById("map");
+  if (!mapElement) return;
+
   const defaultLocation = { lat: 14.5995, lng: 120.9842 };
 
-  map = new google.maps.Map(document.getElementById("map"), {
+  map = new google.maps.Map(mapElement, {
     center: defaultLocation,
     zoom: 12,
     styles: [
@@ -25,11 +29,88 @@ window.initMap = function() {
     ],
   });
 
-  if (restaurants.length > 0) {
-    addRestaurantMarkers(restaurants);
-  }
   setupEventListeners();
+  handleURLParameters();
 };
+
+function handleURLParameters() {
+  // Only proceed if we're on the search page
+  if (!document.getElementById('search-form')) return;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const address = urlParams.get('address');
+  const radius = urlParams.get('radius') || 1000;
+  const cuisine = urlParams.get('cuisine');
+  const sortBy = urlParams.get('sort_by');
+  const showFavorites = urlParams.get('show_favorites') === 'true';
+
+  if (address && address !== 'null') {
+    document.getElementById('address').value = address;
+    document.getElementById('radius').value = radius;
+    if (cuisine) document.getElementById('cuisine').value = cuisine;
+    if (sortBy) document.getElementById('sort_by').value = sortBy;
+    if (showFavorites) document.getElementById('show_favorites').checked = true;
+
+    performSearch(address, radius, cuisine, sortBy, showFavorites);
+  }
+}
+
+function performSearch(address, radius, cuisine, sortBy, showFavorites) {
+  const searchParams = new URLSearchParams({
+    address: address,
+    radius: radius,
+    cuisine: cuisine || '',
+    sort_by: sortBy || '',
+    show_favorites: showFavorites
+  });
+
+  fetch(`/restaurants/search?${searchParams.toString()}`, {
+    headers: {
+      'Accept': 'application/json'
+    },
+    credentials: 'same-origin' // Ensure cookies are sent for authentication
+  })
+  .then(response => {
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('You are not authenticated. Please log in.');
+      }
+      throw new Error('Network response was not ok');
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (Array.isArray(data) && data.length > 0) {
+      restaurants = data;
+      updateCuisineFilter(restaurants);
+      addRestaurantMarkers(restaurants);
+      updateRestaurantList(restaurants);
+      
+      // Update map center based on the first restaurant in the results
+      const firstRestaurant = restaurants[0];
+      updateMapCenter(parseFloat(firstRestaurant.latitude), parseFloat(firstRestaurant.longitude));
+    } else {
+      throw new Error(data.error || 'No restaurants found');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    clearMap();
+    // Display error message to the user
+    const resultsList = document.getElementById('resultsList');
+    if (resultsList) {
+      resultsList.innerHTML = `<div class="p-4 text-red-500">Error: ${error.message}</div>`;
+    }
+  });
+}
+
+function updateMapCenter(lat, lng) {
+  if (map) {
+    const newCenter = new google.maps.LatLng(lat, lng);
+    map.setCenter(newCenter);
+    map.setZoom(12); // Reset zoom level
+  }
+}
 
 // Add markers to the map
 function addRestaurantMarkers(restaurants) {
@@ -62,20 +143,29 @@ function addRestaurantMarkers(restaurants) {
 
   if (restaurants.length > 0) {
     map.fitBounds(bounds);
-    const listener = google.maps.event.addListener(map, "idle", () => {
-      if (map.getZoom() > 16) map.setZoom(16);
-      google.maps.event.removeListener(listener);
+    
+    // Add a listener for when the map becomes idle after panning/zooming
+    google.maps.event.addListenerOnce(map, 'idle', () => {
+      // If zoom level is too high (i.e., too zoomed out), set it to a more reasonable level
+      if (map.getZoom() > 15) {
+        map.setZoom(15);
+      }
     });
   }
 }
 
 function clearMap() {
-  markers.forEach(marker => marker.setMap(null));
-  markers.clear();
+  if (markers) {
+    markers.forEach(marker => marker.setMap(null));
+    markers.clear();
+  }
 }
 
 function toggleFavorite(button) {
+  if (favoriteRequestInProgress) return;
+  
   const restaurantId = button.dataset.restaurantId;
+  favoriteRequestInProgress = true;
 
   fetch(`/restaurants/${restaurantId}/toggle_favorite`, {
     method: 'POST',
@@ -95,7 +185,10 @@ function toggleFavorite(button) {
     updateFavoriteButton(button, data.is_favorite);
     updateRestaurantFavoriteStatus(restaurantId, data.is_favorite);
   })
-  .catch(error => console.error('Error:', error));
+  .catch(error => console.error('Error:', error))
+  .finally(() => {
+    favoriteRequestInProgress = false;
+  });
 }
 
 function updateFavoriteButton(button, isFavorite) {
@@ -140,11 +233,7 @@ function setupEventListeners() {
   });
 
   // Toggle favorites filter
-  document.getElementById('toggleFavorites')?.addEventListener('click', () => {
-    const checkbox = document.getElementById('show_favorites');
-    checkbox.checked = !checkbox.checked;
-    filterRestaurants();
-  });
+  document.getElementById('show_favorites')?.addEventListener('change', filterRestaurants);
 
   // Form submission
   const form = document.querySelector('form');
@@ -153,41 +242,27 @@ function setupEventListeners() {
     const formData = new FormData(form);
     const searchParams = new URLSearchParams(formData);
     
-    fetch(`${form.action}?${searchParams.toString()}`, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return response.json();
-    })
-    .then(data => {
-      if (Array.isArray(data)) {
-        restaurants = data;
-        updateCuisineFilter(restaurants);
-        addRestaurantMarkers(restaurants);
-        updateRestaurantList(restaurants);
-      } else {
-        throw new Error(data.error || 'Invalid response from server');
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      clearMap();
-      // Display error message to the user
-      const resultsList = document.getElementById('resultsList');
-      if (resultsList) {
-        resultsList.innerHTML = `<div class="p-4 text-red-500">Error: ${error.message}</div>`;
-      }
-    });
+    // Update URL with search parameters
+    const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+
+    performSearch(
+      formData.get('address'),
+      formData.get('radius'),
+      formData.get('cuisine'),
+      formData.get('sort_by'),
+      formData.get('show_favorites') === 'true'
+    );
   });
 
   // Cuisine and sort_by select elements
   document.getElementById('cuisine')?.addEventListener('change', filterRestaurants);
   document.getElementById('sort_by')?.addEventListener('change', filterRestaurants);
+
+  // Listen for popstate events (back/forward browser navigation)
+  window.addEventListener('popstate', (event) => {
+    handleURLParameters();
+  });
 }
 
 function updateCuisineFilter(restaurants) {
@@ -199,20 +274,39 @@ function updateCuisineFilter(restaurants) {
   });
 
   const cuisineSelect = document.getElementById('cuisine');
+  if (!cuisineSelect) return;
+
   const currentValue = cuisineSelect.value;
   
-  cuisineSelect.innerHTML = `
-    <option value="">All Cuisines</option>
-    ${Array.from(allCuisines).sort().map(cuisine => 
-      `<option value="${cuisine}" ${cuisine === currentValue ? 'selected' : ''}>${cuisine}</option>`
-    ).join('')}
-  `;
+  // Keep existing options
+  const existingOptions = Array.from(cuisineSelect.options).filter(option => 
+    option.value === '' || allCuisines.has(option.value)
+  );
+
+  // Add new options
+  const newOptions = Array.from(allCuisines)
+    .filter(cuisine => !existingOptions.some(option => option.value === cuisine))
+    .map(cuisine => new Option(cuisine, cuisine, false, cuisine === currentValue));
+
+  // Clear and repopulate the select element
+  cuisineSelect.innerHTML = '';
+  existingOptions.forEach(option => cuisineSelect.add(option));
+  newOptions.forEach(option => cuisineSelect.add(option));
+
+  // Sort options (excluding the first "All Cuisines" option)
+  const sortedOptions = Array.from(cuisineSelect.options)
+    .slice(1)
+    .sort((a, b) => a.text.localeCompare(b.text));
+
+  cuisineSelect.innerHTML = '';
+  cuisineSelect.add(new Option('All Cuisines', ''));
+  sortedOptions.forEach(option => cuisineSelect.add(option));
 }
 
 function filterRestaurants() {
-  const cuisine = document.getElementById('cuisine').value;
-  const sortBy = document.getElementById('sort_by').value;
-  const showFavorites = document.getElementById('show_favorites').checked;
+  const cuisine = document.getElementById('cuisine')?.value;
+  const sortBy = document.getElementById('sort_by')?.value;
+  const showFavorites = document.getElementById('show_favorites')?.checked;
 
   let filteredRestaurants = restaurants;
 
@@ -321,23 +415,31 @@ function getPriceLevelIndicator(priceLevel) {
 
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  if (typeof google !== 'undefined') {
-    initMap();
-  }
-  setupEventListeners();
-
-  // Initialize restaurants array with data from the server
-  restaurants = JSON.parse(document.getElementById('restaurants-data').textContent);
-
-  // Update favorite status for each restaurant
-  restaurants.forEach(restaurant => {
-    const favoriteButton = document.querySelector(`.favorite-button[data-restaurant-id="${restaurant.id}"]`);
-    if (favoriteButton) {
-      updateFavoriteButton(favoriteButton, restaurant.is_favorite);
+  // Only initialize map and perform search if we're on the search page
+  if (document.getElementById('search-form')) {
+    if (typeof google !== 'undefined') {
+      initMap();
     }
-  });
+    setupEventListeners();
 
-  // Initial filtering and display
-  filterRestaurants();
+    // Initialize restaurants array with data from the server
+    const restaurantsData = document.getElementById('restaurants-data');
+    if (restaurantsData) {
+      restaurants = JSON.parse(restaurantsData.textContent);
+
+      // Update favorite status for each restaurant
+      restaurants.forEach(restaurant => {
+        const favoriteButton = document.querySelector(`.favorite-button[data-restaurant-id="${restaurant.id}"]`);
+        if (favoriteButton) {
+          updateFavoriteButton(favoriteButton, restaurant.is_favorite);
+        }
+      });
+
+      // Initial filtering and display
+      filterRestaurants();
+    }
+  }
 });
+
+
 

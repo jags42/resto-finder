@@ -1,8 +1,12 @@
 class RestaurantsController < ApplicationController
-  before_action :authenticate_user!, except: [:search, :show]
+  before_action :authenticate_user!, except: [:search]
   before_action :set_restaurant, only: [:show]
 
   def search
+    unless user_signed_in?
+      render json: { error: "You must be logged in to perform a search." }, status: :unauthorized
+      return
+    end
     Rails.logger.debug "=== Starting Restaurant Search ==="
     
     address = params[:address]
@@ -11,29 +15,29 @@ class RestaurantsController < ApplicationController
     cuisine = params[:cuisine]
     sort_by = params[:sort_by]
     show_favorites = params[:show_favorites] == 'true'
-
+  
     Rails.logger.debug "Search params: address=#{address}, radius=#{radius}, max_results=#{max_results}, cuisine=#{cuisine}, sort_by=#{sort_by}, show_favorites=#{show_favorites}"
-
+  
     if address.blank?
       flash.now[:alert] = "Address is required"
       return render :search
     end
-
+  
     places_service = GooglePlacesService.new
-
+  
     # Step 1: Geocode the address
     location = places_service.geocode_address(address)
     Rails.logger.debug "Geocoded location: #{location.inspect}"
-
+  
     if location[:error]
       flash.now[:alert] = location[:error]
       return render :search
     end
-
+  
     # Step 2: Search restaurants using lat/lng from geocoding
     lat = location[:latitude]
     lng = location[:longitude]
-
+  
     begin
       restaurant_attrs_list = places_service.search_restaurants(
         lat,
@@ -41,11 +45,11 @@ class RestaurantsController < ApplicationController
         radius.to_f,
         max_results.to_i
       )
-
+  
       Rails.logger.debug "Received #{restaurant_attrs_list.length} restaurants"
-
+  
       if restaurant_attrs_list.any?
-        @restaurants = restaurant_attrs_list.map do |attrs|
+        restaurants = restaurant_attrs_list.map do |attrs|
           restaurant = Restaurant.find_or_initialize_by(place_id: attrs[:place_id])
           attrs[:cuisine] = normalize_cuisine(attrs[:cuisine])
           Rails.logger.debug "Restaurant attributes: #{attrs.inspect}"
@@ -58,16 +62,19 @@ class RestaurantsController < ApplicationController
           end
           restaurant
         end
-
+  
         # Apply filters
-        @restaurants = filter_restaurants(@restaurants, cuisine, sort_by, show_favorites)
-
-        # Add favorite status for each restaurant
-        if user_signed_in?
-          favorite_restaurant_ids = current_user.favorites.pluck(:restaurant_id)
-          @restaurants = @restaurants.map do |restaurant|
-            restaurant.as_json.merge(is_favorite: favorite_restaurant_ids.include?(restaurant.id))
-          end
+        restaurants = filter_restaurants(restaurants, cuisine, sort_by, show_favorites)
+  
+        # Convert to array of hashes with favorite status
+        @restaurants = restaurants.map do |restaurant|
+          restaurant_hash = restaurant.as_json(
+            methods: [:average_rating],
+            only: [:id, :name, :address, :latitude, :longitude, :price_level, :cuisine, :photo_url, :place_id]
+          )
+          restaurant_hash['is_favorite'] = user_signed_in? ? current_user.favorites.exists?(restaurant_id: restaurant.id) : false
+          restaurant_hash['reviews_count'] = restaurant.reviews.count
+          restaurant_hash
         end
       else
         flash.now[:notice] = "No restaurants found for the specified location"
@@ -79,19 +86,29 @@ class RestaurantsController < ApplicationController
       flash.now[:alert] = "An error occurred while searching for restaurants"
       @restaurants = []
     end
-
+  
     respond_to do |format|
       format.html
       format.json { render json: @restaurants }
     end
   end
-
+  
   def show
     @reviews = @restaurant.reviews.includes(:user).order(created_at: :desc)
     @average_rating = @restaurant.average_rating
     @user_review = @restaurant.reviews.find_by(user: current_user) if user_signed_in?
     @review = Review.new
     @is_favorite = user_signed_in? && current_user.favorites.exists?(restaurant: @restaurant)
+
+    respond_to do |format|
+      format.html
+      format.json { 
+        render json: @restaurant.as_json(
+          methods: [:average_rating, :reviews_count],
+          only: [:id, :name, :address, :latitude, :longitude, :price_level, :cuisine, :photo_url, :place_id]
+        ).merge(is_favorite: @is_favorite)
+      }
+    end
   end
 
   private
@@ -145,3 +162,4 @@ class RestaurantsController < ApplicationController
     @restaurant = Restaurant.find(params[:id])
   end
 end
+

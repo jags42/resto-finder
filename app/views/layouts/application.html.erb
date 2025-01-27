@@ -7,16 +7,21 @@
     <%= stylesheet_link_tag "tailwind", "inter-font", "data-turbo-track": "reload" %>
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
-    
   </head>
   <body>
-    <%= yield %>
+      <% unless devise_controller? %>
+          <% if current_user.present? %>
+            <%= render 'layouts/navbar' %>
+          <% end %>
+      <% end %>
+      
+      <%= yield %>
+    </div>
 
     <script 
-    src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['GOOGLE_PLACES_API_KEY'] %>&callback=initMap" 
-    async 
-    defer>
-</script>
-
+      src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['GOOGLE_PLACES_API_KEY'] %>&callback=initMap" 
+      async 
+      defer>
+    </script>
   </body>
 </html>

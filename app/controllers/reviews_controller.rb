@@ -11,11 +11,14 @@ class ReviewsController < ApplicationController
       @restaurant.update_ratings_data
       redirect_to @restaurant, notice: 'Review was successfully created.'
     else
-      redirect_to @restaurant, alert: @review.errors.full_messages.to_sentence
+      @reviews = @restaurant.reviews.includes(:user).order(created_at: :desc)
+      render 'restaurants/show'
     end
   end
 
   def edit
+    @reviews = @restaurant.reviews.includes(:user).order(created_at: :desc)
+    render 'restaurants/show'
   end
 
   def update
@@ -23,7 +26,8 @@ class ReviewsController < ApplicationController
       @restaurant.update_ratings_data
       redirect_to @restaurant, notice: 'Review was successfully updated.'
     else
-      render :edit
+      @reviews = @restaurant.reviews.includes(:user).order(created_at: :desc)
+      render 'restaurants/show'
     end
   end
 

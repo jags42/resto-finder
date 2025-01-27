@@ -167,12 +167,4 @@ class GooglePlacesService
       { "error" => "API request failed with code #{response.code}: #{response.body}" }
     end
   end
-  
-  PRICE_LEVEL_MAP = {
-    "PRICE_LEVEL_FREE" => "Free",
-    "PRICE_LEVEL_INEXPENSIVE" => "Inexpensive",
-    "PRICE_LEVEL_MODERATE" => "Moderate",
-    "PRICE_LEVEL_EXPENSIVE" => "Expensive",
-    "PRICE_LEVEL_VERY_EXPENSIVE" => "Very Expensive"
-  }
 end

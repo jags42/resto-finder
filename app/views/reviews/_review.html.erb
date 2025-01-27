@@ -1,43 +1,28 @@
-<div class="border-b border-gray-200 pb-4 mb-4" id="review-<%= review.id %>">
+<div class="border-b border-gray-200 pb-4 mb-4 last:border-b-0 last:pb-0 last:mb-0">
+  <div class="flex items-center justify-between mb-2">
+    <div>
+      <span class="font-semibold"><%= review.user.email %></span>
+      <span class="text-gray-500 text-sm ml-2"><%= review.created_at.strftime("%B %d, %Y") %></span>
+    </div>
+    <% if review.user == current_user %>
+      <div>
+        <%= link_to "Edit", edit_restaurant_review_path(review.restaurant, review), class: "text-indigo-600 hover:text-indigo-900 mr-2" %>
+        <%= button_to "Delete", restaurant_review_path(review.restaurant, review), method: :delete, data: { confirm: "Are you sure you want to delete this review?" }, class: "text-red-600 hover:text-red-900" %>
+      </div>
+    <% end %>
+  </div>
   <div class="flex items-center mb-2">
-    <span class="text-yellow-400"><%= "★" * review.rating %><%= "☆" * (5 - review.rating) %></span>
-    <span class="ml-2 font-semibold"><%= review.user.email %></span>
-    <span class="ml-2 text-gray-500"><%= review.created_at.strftime("%B %d, %Y") %></span>
+    <% review.rating.times do %>
+      <svg class="w-5 h-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+    <% end %>
+    <% (5 - review.rating).times do %>
+      <svg class="w-5 h-5 text-gray-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+    <% end %>
   </div>
-  <div class="review-content">
-    <p class="text-gray-700"><%= review.comment %></p>
-  </div>
-  <% if review.user == current_user %>
-    <div class="mt-2 flex space-x-2">
-      <button class="edit-review-btn text-blue-500 hover:text-blue-700" data-review-id="<%= review.id %>">
-        Edit
-      </button>
-      <%= button_to "Delete", restaurant_review_path(review.restaurant, review), method: :delete, data: { confirm: "Are you sure you want to delete this review?" }, class: "text-red-500 hover:text-red-700" %>
-    </div>
-    <div class="edit-form hidden mt-2" id="edit-form-<%= review.id %>">
-      <%= form_with(model: [review.restaurant, review], local: true, class: "space-y-4") do |form| %>
-        <div>
-          <%= form.label :rating, class: "block text-sm font-medium text-gray-700" %>
-          <div class="mt-1 flex items-center space-x-2">
-            <% (1..5).each do |star| %>
-              <%= form.radio_button :rating, star, class: "hidden peer", id: "edit-star-#{review.id}-#{star}" %>
-              <label for="edit-star-<%= review.id %>-<%= star %>" class="cursor-pointer text-2xl <%= review.rating && review.rating >= star ? 'text-yellow-400' : 'text-gray-300' %> peer-checked:text-yellow-400">
-                ★
-              </label>
-            <% end %>
-          </div>
-        </div>
-        <div>
-          <%= form.text_area :comment, rows: 3, class: "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border-gray-300 rounded-md" %>
-        </div>
-        <div class="flex space-x-2">
-          <%= form.submit "Update Review", class: "inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
-          <button type="button" class="cancel-edit-btn inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-            Cancel
-          </button>
-        </div>
-      <% end %>
-    </div>
-  <% end %>
+  <p class="text-gray-700"><%= review.comment %></p>
 </div>
 

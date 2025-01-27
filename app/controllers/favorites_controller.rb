@@ -1,17 +1,18 @@
 class FavoritesController < ApplicationController
-  before_action :authenticate_user!
   before_action :set_restaurant
+  before_action :authenticate_user!
 
   def toggle
-    favorite = current_user.favorites.find_by(restaurant: @restaurant)
+    favorite = current_user.favorites.find_or_initialize_by(restaurant: @restaurant)
 
     begin
       ActiveRecord::Base.transaction do
-        if favorite
+        if favorite.persisted?
           favorite.destroy
           is_favorite = false
         else
-          current_user.favorites.create!(restaurant: @restaurant, user_likes_restaurant: true)
+          favorite.user_likes_restaurant = true
+          favorite.save!
           is_favorite = true
         end
       end
